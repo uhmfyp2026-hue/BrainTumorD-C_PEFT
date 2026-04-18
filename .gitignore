@@ -1,0 +1,19 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.env
+venv/
+env/
+
+# Large model files (too big for GitHub)
+*.h5
+*.pt
+*.pth
+
+# VS Code
+.vscode/
+
+# OS
+.DS_Store
+Thumbs.db
