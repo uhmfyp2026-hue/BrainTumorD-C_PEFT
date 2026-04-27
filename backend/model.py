@@ -7,108 +7,103 @@ import h5py
 import io
 
 CLASS_NAMES = ["Glioma", "Meningioma", "No Tumor", "Pituitary"]
-IMG_SIZE = 224
-MODEL_PATH = "brain_tumor_vgg16.h5"
+IMG_SIZE    = 224
+MODEL_PATH  = "brain_tumor_resnet50_fulltune.h5"
 
-# ── Exact architecture from inspect_model.py ──────────────────────────────────
-# classifier[0]  Linear(25088 → 4096)
-# classifier[1]  BatchNorm1d(4096)
-# classifier[4]  Linear(4096 → 1024)
-# classifier[5]  BatchNorm1d(1024)
-# classifier[8]  Linear(1024 → 256)
-# classifier[9]  BatchNorm1d(256)
-# classifier[12] Linear(256 → 4)
-# ─────────────────────────────────────────────────────────────────────────────
-
-class VGG16_PEFT_BNHead(nn.Module):
+class ResNet50_FullTune(nn.Module):
     def __init__(self):
         super().__init__()
-        base = models.vgg16(weights=None)
-        self.features = base.features
-        self.avgpool  = base.avgpool  # 7x7 adaptive avg pool → (512,7,7)
-
-        # Custom classifier matching saved weights exactly
-        # indices match the h5 keys: 0,1,_,_,4,5,_,_,8,9,_,_,12
-        self.classifier = nn.Sequential(
-            nn.Linear(25088, 4096),       # [0]
-            nn.BatchNorm1d(4096),         # [1]
-            nn.ReLU(inplace=True),        # [2]  — no weights, skip in loader
-            nn.Dropout(0.5),              # [3]  — no weights, skip in loader
-            nn.Linear(4096, 1024),        # [4]
-            nn.BatchNorm1d(1024),         # [5]
-            nn.ReLU(inplace=True),        # [6]
-            nn.Dropout(0.5),              # [7]
-            nn.Linear(1024, 256),         # [8]
-            nn.BatchNorm1d(256),          # [9]
-            nn.ReLU(inplace=True),        # [10]
-            nn.Dropout(0.5),              # [11]
-            nn.Linear(256, 4),            # [12]
+        base = models.resnet50(weights=None)
+        self.conv1   = base.conv1
+        self.bn1     = base.bn1
+        self.relu    = base.relu
+        self.maxpool = base.maxpool
+        self.layer1  = base.layer1
+        self.layer2  = base.layer2
+        self.layer3  = base.layer3
+        self.layer4  = base.layer4
+        self.avgpool = base.avgpool
+        self.fc = nn.Sequential(
+            nn.Linear(2048, 512),
+            nn.BatchNorm1d(512),
+            nn.ReLU(inplace=True),
+            nn.Dropout(0.5),
+            nn.Linear(512, 256),
+            nn.BatchNorm1d(256),
+            nn.ReLU(inplace=True),
+            nn.Dropout(0.5),
+            nn.Linear(256, 4),
         )
 
     def forward(self, x):
-        x = self.features(x)
+        x = self.conv1(x)
+        x = self.bn1(x)
+        x = self.relu(x)
+        x = self.maxpool(x)
+        x = self.layer1(x)
+        x = self.layer2(x)
+        x = self.layer3(x)
+        x = self.layer4(x)
         x = self.avgpool(x)
         x = torch.flatten(x, 1)
-        x = self.classifier(x)
+        x = self.fc(x)
         return x
 
-
-def _t(arr):
-    """numpy array → float32 torch Parameter"""
+def _p(arr):
     return nn.Parameter(torch.tensor(np.array(arr), dtype=torch.float32))
 
+def _load_bn(layer, grp):
+    layer.weight              = _p(grp["weight"])
+    layer.bias                = _p(grp["bias"])
+    layer.running_mean        = torch.tensor(np.array(grp["running_mean"]), dtype=torch.float32)
+    layer.running_var         = torch.tensor(np.array(grp["running_var"]),  dtype=torch.float32)
+    layer.num_batches_tracked = torch.tensor(int(np.array(grp["num_batches_tracked"])))
+
+def _load_conv(layer, grp):
+    layer.weight = _p(grp["weight"])
+
+def _load_linear(layer, grp):
+    layer.weight = _p(grp["weight"])
+    layer.bias   = _p(grp["bias"])
+
+def _load_bottleneck(block, grp):
+    _load_conv(block.conv1, grp["conv1"])
+    _load_bn(block.bn1,     grp["bn1"])
+    _load_conv(block.conv2, grp["conv2"])
+    _load_bn(block.bn2,     grp["bn2"])
+    _load_conv(block.conv3, grp["conv3"])
+    _load_bn(block.bn3,     grp["bn3"])
+    if "downsample" in grp:
+        ds = grp["downsample"]
+        _load_conv(block.downsample[0], ds["0"])
+        _load_bn(block.downsample[1],   ds["1"])
 
 def load_weights(model, path):
     with h5py.File(path, "r") as f:
-        feat = f["weights"]["features"]
-        cls  = f["weights"]["classifier"]
-
-        # ── features (conv layers) ────────────────────────────────────────────
-        for idx_str in feat.keys():
-            idx = int(idx_str)
-            layer = model.features[idx]
-            if isinstance(layer, nn.Conv2d):
-                w = np.array(feat[idx_str]["weight"])
-                # PyTorch Conv2d: (out, in, kH, kW)
-                # h5 stored as:   (out, kH, kW, in)  ← need transpose
-                if w.shape != tuple(layer.weight.shape):
-                    w = np.transpose(w, (0, 3, 1, 2))
-                layer.weight = _t(w)
-                layer.bias   = _t(feat[idx_str]["bias"])
-
-        # ── classifier ───────────────────────────────────────────────────────
-        # Linear layers: [0], [4], [8], [12]
-        linear_map = {0: 0, 4: 4, 8: 8, 12: 12}
-        for h5_idx, seq_idx in linear_map.items():
-            grp   = cls[str(h5_idx)]
-            layer = model.classifier[seq_idx]
-            if isinstance(layer, nn.Linear):
-                layer.weight = _t(grp["weight"])
-                layer.bias   = _t(grp["bias"])
-
-        # BatchNorm layers: [1]→seq[1], [5]→seq[5], [9]→seq[9]
-        bn_map = {1: 1, 5: 5, 9: 9}
-        for h5_idx, seq_idx in bn_map.items():
-            grp   = cls[str(h5_idx)]
-            layer = model.classifier[seq_idx]
-            if isinstance(layer, nn.BatchNorm1d):
-                layer.weight       = _t(grp["weight"])        # gamma
-                layer.bias         = _t(grp["bias"])          # beta
-                layer.running_mean = torch.tensor(np.array(grp["running_mean"]), dtype=torch.float32)
-                layer.running_var  = torch.tensor(np.array(grp["running_var"]),  dtype=torch.float32)
-                layer.num_batches_tracked = torch.tensor(int(np.array(grp["num_batches_tracked"])))
-
-    print("✅ All weights loaded successfully")
+        w = f["weights"]
+        _load_conv(model.conv1, w["conv1"])
+        _load_bn(model.bn1,     w["bn1"])
+        for layer_name in ["layer1", "layer2", "layer3", "layer4"]:
+            layer = getattr(model, layer_name)
+            grp   = w[layer_name]
+            for idx_str in grp.keys():
+                _load_bottleneck(layer[int(idx_str)], grp[idx_str])
+        fc_grp = w["fc"]
+        _load_linear(model.fc[0], fc_grp["0"])
+        _load_bn(model.fc[1],     fc_grp["1"])
+        _load_linear(model.fc[4], fc_grp["4"])
+        _load_bn(model.fc[5],     fc_grp["5"])
+        _load_linear(model.fc[8], fc_grp["8"])
+    print("✅ ResNet50 weights loaded successfully")
     return model
 
-
-# ── Build & load ──────────────────────────────────────────────────────────────
-model = VGG16_PEFT_BNHead()
+model = ResNet50_FullTune()
 model = load_weights(model, MODEL_PATH)
 model.eval()
 print(f"✅ Model ready — classes: {CLASS_NAMES}")
+print(f"   Architecture : ResNet50-FullFinetune")
+print(f"   Val accuracy : 99.53%")
 
-# ── Preprocessing (ImageNet stats, matches VGG16 training) ───────────────────
 transform = transforms.Compose([
     transforms.Resize((IMG_SIZE, IMG_SIZE)),
     transforms.ToTensor(),
@@ -116,22 +111,20 @@ transform = transforms.Compose([
                          std=[0.229, 0.224, 0.225])
 ])
 
-
 def predict(image_bytes: bytes) -> dict:
     img    = Image.open(io.BytesIO(image_bytes)).convert("RGB")
-    tensor = transform(img).unsqueeze(0)          # (1, 3, 224, 224)
-
+    tensor = transform(img).unsqueeze(0)
     with torch.no_grad():
         logits = model(tensor)
         probs  = torch.softmax(logits, dim=1)[0]
-
-    preds = probs.numpy()
-    print("Raw predictions:", {CLASS_NAMES[i]: round(float(preds[i])*100,1) for i in range(4)})
-
+    preds  = probs.numpy()
     scores = {CLASS_NAMES[i]: round(float(preds[i]) * 100, 1) for i in range(4)}
     top    = int(np.argmax(preds))
+    print("Prediction:", CLASS_NAMES[top], "| Confidence:", round(float(preds[top]) * 100, 1), "%")
+    print("All scores:", scores)
     return {
         "scores":     scores,
         "prediction": CLASS_NAMES[top],
         "confidence": round(float(preds[top]) * 100, 1)
     }
+    
