@@ -127,4 +127,4 @@ def predict(image_bytes: bytes) -> dict:
         "prediction": CLASS_NAMES[top],
         "confidence": round(float(preds[top]) * 100, 1)
     }
-    
+
