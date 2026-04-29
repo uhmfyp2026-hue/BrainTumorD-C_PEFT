@@ -19,3 +19,4 @@ def root():
 async def classify(file: UploadFile = File(...)):
     data = await file.read()
     return predict(data)
+
