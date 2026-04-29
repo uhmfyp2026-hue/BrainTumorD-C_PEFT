@@ -128,3 +128,4 @@ def predict(image_bytes: bytes) -> dict:
         "confidence": round(float(preds[top]) * 100, 1)
     }
 
+
