@@ -9,6 +9,7 @@ for k in f['weights']['fc'].keys():
         print(f'  [{k}] shape: {item.shape}')
 
 
+
     else:
         for k2 in item.keys():
             print(f'  [{k}][{k2}] shape: {item[k2].shape}')
