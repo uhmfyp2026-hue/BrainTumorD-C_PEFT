@@ -12,6 +12,7 @@ app.add_middleware(
 )
 
 
+
 @app.get("/")
 def root():
     return {"status": "NeuroScan AI backend running"}
