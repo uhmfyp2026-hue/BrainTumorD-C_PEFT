@@ -7,9 +7,13 @@ for k in f['weights']['fc'].keys():
     item = f['weights']['fc'][k]
     if hasattr(item, 'shape'):
         print(f'  [{k}] shape: {item.shape}')
+
+
     else:
         for k2 in item.keys():
             print(f'  [{k}][{k2}] shape: {item[k2].shape}')
+
+
 
 print('=== CONV1 ===')
 for k in f['weights']['conv1'].keys():
@@ -32,4 +36,7 @@ def print_group(g, prefix=''):
 print_group(f['weights']['layer1'][first], f'layer1[{first}]')
 
 f.close()
+
 print('Done.')
+
+
