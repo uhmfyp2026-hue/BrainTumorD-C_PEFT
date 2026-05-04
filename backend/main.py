@@ -20,4 +20,9 @@ def root():
 @app.post("/classify")
 async def classify(file: UploadFile = File(...)):
     data = await file.read()
+<<<<<<< HEAD
     return predict(data)
+=======
+    return predict(data)
+
+>>>>>>> 1854273c38c7f10f3bd36904a32aa2a566058d52

@@ -38,4 +38,10 @@ print_group(f['weights']['layer1'][first], f'layer1[{first}]')
 
 f.close()
 
+<<<<<<< HEAD
 print('Done.')
+=======
+print('Done.')
+
+
+>>>>>>> 1854273c38c7f10f3bd36904a32aa2a566058d52

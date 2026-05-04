@@ -1,6 +1,15 @@
 fastapi
 uvicorn
+<<<<<<< HEAD
 tensorflow
 numpy
 pillow
 python-multipart
+=======
+torch
+torchvision
+h5py
+pillow
+python-multipart
+numpy
+>>>>>>> 1854273c38c7f10f3bd36904a32aa2a566058d52
