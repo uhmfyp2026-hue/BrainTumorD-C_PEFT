@@ -178,3 +178,188 @@ a{text-decoration:none;color:inherit}
         <img id="previewImg" src="" alt="Uploaded MRI"/>
         <div class="p-lbl">Uploaded scan</div>
       </div>
+
+      
+      <!-- Ensemble result -->
+      <div class="ensemble-box">
+        <h3>Ensemble result</h3>
+        <p class="ens-subtitle">Majority vote across 3 models</p>
+
+        <!-- vote display -->
+        <div class="vote-row" id="voteRow" style="display:none;">
+          <div>
+            <div class="vote-class" id="voteClass">—</div>
+            <div style="font-size:11px;color:var(--muted);margin-top:2px;" id="voteLabel">—</div>
+          </div>
+          <div class="vote-icons" id="voteIcons"></div>
+          <div class="vote-conf" id="voteConf">—</div>
+        </div>
+
+        <!-- averaged confidence bars -->
+        <div class="c-bars" id="cBars">
+          <p class="placeholder-msg">Run classification to see results.</p>
+        </div>
+
+        <!-- diagnosis -->
+        <div class="diag" id="diag"></div>
+      </div>
+    </div>
+
+    <!-- RUN BUTTON -->
+    <button class="btn-run" id="runBtn" onclick="runClassify()">
+      <svg viewBox="0 0 24 24"><path d="M9 3H5a2 2 0 0 0-2 2v4m6-6h10a2 2 0 0 1 2 2v4M9 3v18m0 0h10a2 2 0 0 0 2-2V9M9 21H5a2 2 0 0 0-2-2V9m0 0h18"/></svg>
+      <span id="runLabel">Run Classification (3 Models)</span>
+      <div class="spinner" id="spinner"></div>
+    </button>
+
+    <!-- INDIVIDUAL MODEL CARDS -->
+    <div class="models-row" id="modelsRow" style="display:none;">
+      <!-- filled by JS -->
+    </div>
+
+  </div><!-- /preview -->
+</main>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const CLASSES = ['Glioma','Meningioma','No Tumor','Pituitary'];
+const COLORS  = ['#ef4444','#f59e0b','#22c55e','#8b5cf6'];
+
+/* ── FILE HANDLING ── */
+const zone = document.getElementById('uploadZone');
+zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('drag'); });
+zone.addEventListener('dragleave',()=> zone.classList.remove('drag'));
+zone.addEventListener('drop', e => { e.preventDefault(); zone.classList.remove('drag'); const f=e.dataTransfer.files[0]; if(f) loadFile(f); });
+document.getElementById('fileInput').addEventListener('change', e => { if(e.target.files[0]) loadFile(e.target.files[0]); });
+
+function loadFile(f) {
+  if (!f.type.startsWith('image/')) { showToast('Please upload an image file.'); return; }
+  if (f.size > 10*1024*1024)        { showToast('File too large (max 10 MB).');  return; }
+  const r = new FileReader();
+  r.onload = e => {
+    document.getElementById('previewImg').src = e.target.result;
+    document.getElementById('preview').classList.add('show');
+    document.getElementById('cBars').innerHTML = '<p class="placeholder-msg">Ready — click "Run Classification" below.</p>';
+    document.getElementById('diag').style.display = 'none';
+    document.getElementById('voteRow').style.display = 'none';
+    document.getElementById('modelsRow').style.display = 'none';
+  };
+  r.readAsDataURL(f);
+}
+
+/* ── CLASSIFY ── */
+async function runClassify() {
+  const btn     = document.getElementById('runBtn');
+  const spinner = document.getElementById('spinner');
+  const lbl     = document.getElementById('runLabel');
+  const file    = document.getElementById('fileInput').files[0];
+  if (!file) { showToast('Please upload a scan first.'); return; }
+
+  btn.disabled = true; spinner.classList.add('on');
+  lbl.textContent = 'Analysing with 3 models…';
+
+  try {
+    const fd = new FormData(); fd.append('file', file);
+    const res = await fetch('http://127.0.0.1:8000/classify', { method:'POST', body:fd });
+    if (!res.ok) throw new Error('Server error');
+    const data = await res.json();
+    showResults(data);
+  } catch(err) {
+    showToast('Cannot reach backend. Is the server running?');
+    console.error(err);
+  } finally {
+    btn.disabled = false; spinner.classList.remove('on');
+    lbl.textContent = 'Re-run Classification';
+  }
+}
+
+/* ── RENDER RESULTS ── */
+function showResults(data) {
+  const { prediction, confidence, votes, total_models, scores, individual } = data;
+  const finalIdx = CLASSES.indexOf(prediction);
+
+  /* ── averaged bars ── */
+  const bars = document.getElementById('cBars');
+  bars.innerHTML = '';
+  CLASSES.forEach((cls, i) => {
+    const pct = scores[cls] ?? 0;
+    const d = document.createElement('div'); d.className = 'c-bar';
+    d.innerHTML = `
+      <div class="c-info"><span class="c-name">${cls}</span><span class="c-pct">${pct}%</span></div>
+      <div class="c-track"><div class="c-fill" data-w="${pct}" style="background:${COLORS[i]}"></div></div>`;
+    bars.appendChild(d);
+  });
+  requestAnimationFrame(() => setTimeout(() => {
+    document.querySelectorAll('.c-fill').forEach(f => f.style.width = f.dataset.w + '%');
+  }, 30));
+
+  /* ── vote row ── */
+  const voteRow  = document.getElementById('voteRow');
+  const voteIcos = document.getElementById('voteIcons');
+  document.getElementById('voteClass').textContent = prediction;
+  document.getElementById('voteLabel').textContent  = `${votes} of ${total_models} models agree`;
+  document.getElementById('voteConf').textContent   = `${confidence}% avg conf`;
+  voteIcos.innerHTML = '';
+  const modelNames = individual ? Object.keys(individual) : [];
+  modelNames.forEach(name => {
+    const agreed = individual[name].prediction === prediction;
+    const ic = document.createElement('div');
+    ic.className = 'vote-icon ' + (agreed ? 'yes' : 'no');
+    ic.title     = name + ': ' + individual[name].prediction;
+    ic.textContent = agreed ? '✓' : '✗';
+    voteIcos.appendChild(ic);
+  });
+  voteRow.style.display = 'flex';
+
+  /* ── diagnosis ── */
+  const diag  = document.getElementById('diag');
+  const isTumor = prediction !== 'No Tumor';
+  diag.className = 'diag ' + (isTumor ? 'danger' : 'safe');
+  diag.style.display = 'flex';
+  diag.innerHTML = `
+    <div class="diag-ico">${isTumor ? '⚠️' : '✅'}</div>
+    <div class="diag-txt">
+      <strong>${isTumor ? prediction + ' detected' : 'No tumor detected'}</strong>
+      <span>${confidence}% confidence · ${votes}/${total_models} models agree · ${isTumor ? 'Clinical evaluation recommended.' : 'Scan appears normal.'}</span>
+    </div>`;
+
+  /* ── individual model cards ── */
+  if (individual) {
+    const row = document.getElementById('modelsRow');
+    row.innerHTML = '';
+    row.style.display = 'grid';
+    Object.entries(individual).forEach(([name, info]) => {
+      const agreed = info.prediction === prediction;
+      const card = document.createElement('div');
+      card.className = 'model-card ' + (agreed ? 'agreed' : 'disagreed');
+      const miniScores = CLASSES.map((cls,i) => {
+        const p = info.scores[cls] ?? 0;
+        return `<div class="mini-bar-row"><span style="min-width:72px;">${cls}</span><div class="mini-track"><div class="mini-fill" data-w="${p}" style="background:${COLORS[i]}"></div></div><span style="min-width:36px;text-align:right;">${p}%</span></div>`;
+      }).join('');
+      card.innerHTML = `
+        <div class="mc-header">
+          <span class="mc-name">${name}</span>
+          <span class="mc-verdict ${agreed?'yes':'no'}">${agreed?'✓ Agrees':'✗ Different'}</span>
+        </div>
+        <div class="mc-pred">${info.prediction}</div>
+        <div class="mc-conf">${info.confidence}% confidence</div>
+        <div class="mc-mini-bars">${miniScores}</div>`;
+      row.appendChild(card);
+    });
+    requestAnimationFrame(() => setTimeout(() => {
+      document.querySelectorAll('.mini-fill').forEach(f => f.style.width = f.dataset.w + '%');
+    }, 60));
+  }
+
+  showToast(`Ensemble complete — ${votes}/${total_models} agree: ${prediction}`);
+}
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 3500);
+}
+</script>
+</body>
+</html>
