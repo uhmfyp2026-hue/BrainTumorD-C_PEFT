@@ -180,8 +180,8 @@ MODELS = {}
 def load_all():
     configs = [
         ("ResNet50",    "brain_tumor_resnet50_fulltune.h5",    load_resnet50),
-        ("VGG16",       "brain_tumor_vgg16.h5",                load_vgg16),
-        ("DenseNet121", "brain_tumor_densenet121_fulltune.h5",  load_densenet121),
+        ("VGG16",       "brain_tumor_vgg16_fulltune.h5",                load_vgg16),
+        ("DenseNet121", "brain_tumor_densenet121.h5",  load_densenet121),
     ]
     for name, path, loader in configs:
         try:
