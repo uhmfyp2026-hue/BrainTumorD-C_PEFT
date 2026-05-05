@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Classify Scan — NeuroScan AI</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#05090f;--bg2:#0d1523;--border:rgba(255,255,255,0.08);--border2:rgba(255,255,255,0.15);
+  --accent:#2a72d8;--accent2:#1d5db8;--glow:rgba(42,114,216,0.22);
+  --text:#e8edf5;--muted:#7a8fa8;--dim:#3a4d63;
+  --green:#22c55e;--red:#ef4444;--amber:#f59e0b;--purple:#8b5cf6;
+  --r8:8px;--r12:12px;--r16:16px;--r20:20px;
+}
+html{scroll-behavior:smooth}
+body{font-family:system-ui,-apple-system,'Segoe UI',sans-serif;background:var(--bg);color:var(--text);font-size:16px;line-height:1.7;min-height:100vh}
+a{text-decoration:none;color:inherit}
+
+/* NAV */
+.nav{position:sticky;top:0;z-index:100;display:flex;align-items:center;justify-content:space-between;padding:14px 2rem;background:rgba(5,9,15,0.9);backdrop-filter:blur(18px);border-bottom:1px solid var(--border)}
+.logo{display:flex;align-items:center;gap:10px;font-size:17px;font-weight:700;color:var(--text)}
+.logo strong{color:var(--accent)}
+.logo-icon{width:34px;height:34px;min-width:34px;background:linear-gradient(135deg,#1a3a6e,#2a72d8);border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.logo-icon svg{width:16px;height:16px;display:block;fill:none;stroke:#fff;stroke-width:2}
+.nav-back{font-size:14px;color:var(--muted);padding:7px 13px;border-radius:var(--r8);border:1px solid var(--border2);transition:all .2s}
+.nav-back:hover{color:var(--text);background:rgba(255,255,255,.05)}
+
+/* ENSEMBLE BADGE */
+.ensemble-badge{
+  display:flex;align-items:center;gap:6px;
+  font-size:12px;font-weight:600;color:var(--accent);
+  background:rgba(42,114,216,0.1);border:1px solid rgba(42,114,216,0.25);
+  padding:5px 13px;border-radius:20px;
+}
+.ensemble-badge .dot{width:6px;height:6px;background:var(--green);border-radius:50%;animation:pulse 2s ease-in-out infinite}
+
+/* MAIN */
+.main{max-width:900px;margin:0 auto;padding:3rem 2rem 5rem}
+.main h1{font-size:28px;font-weight:800;margin-bottom:6px;letter-spacing:-.01em}
+.subtitle{color:var(--muted);font-size:14px;margin-bottom:2rem}
+
+/* UPLOAD ZONE */
+.upload-zone{border:2px dashed rgba(42,114,216,.3);border-radius:var(--r20);padding:3rem 2rem;text-align:center;cursor:pointer;transition:all .2s;background:rgba(42,114,216,.04)}
+.upload-zone:hover,.upload-zone.drag{border-color:var(--accent);background:rgba(42,114,216,.08)}
+.up-icon{width:52px;height:52px;background:rgba(42,114,216,.15);border-radius:var(--r12);display:flex;align-items:center;justify-content:center;margin:0 auto 1.1rem;color:var(--accent)}
+.up-icon svg{width:24px;height:24px;display:block;fill:none;stroke:currentColor;stroke-width:1.8}
+.upload-zone h3{font-size:16px;font-weight:700;margin-bottom:6px}
+.upload-zone p{font-size:13px;color:var(--muted);margin-bottom:1.2rem}
+.btn-browse{font-size:13px;font-weight:600;color:var(--accent);background:rgba(42,114,216,.12);border:1px solid rgba(42,114,216,.3);padding:8px 20px;border-radius:var(--r8);cursor:pointer;transition:all .2s;font-family:inherit}
+.btn-browse:hover{background:rgba(42,114,216,.2)}
+#fileInput{display:none}
+
