@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>NeuroScan AI — Brain Tumor Detection</title>
+<title>NeuroScan AI — Brain Tumor Detection and Classification</title>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 :root{
@@ -180,7 +180,7 @@ footer p{font-size:13px;color:var(--dim);margin-bottom:4px}
 
   <div class="hero-content">
     <div class="badge"><span class="badge-dot"></span>Parameter-efficient fine-tuning · LoRA · MRI Analysis</div>
-    <h1>Brain tumor<br><span class="grad">detection</span><br>powered by AI</h1>
+    <h1>Brain tumor<br><span class="grad">detection and classification</span><br>powered by AI</h1>
     <p class="hero-desc">Upload MRI scans and get instant, high-accuracy tumor detection and classification using state-of-the-art PEFT models trained on clinical datasets.</p>
     <div class="hero-btns">
       <a href="classify.html" class="btn-classify">
@@ -207,9 +207,10 @@ footer p{font-size:13px;color:var(--dim);margin-bottom:4px}
         </svg>
         <p>T1-weighted MRI</p>
       </div>
-      <div class="rbar"><span class="rbar-label">Glioma</span><div class="rbar-track"><div class="rbar-fill" style="width:82%;background:#ef4444"></div></div><span class="rbar-pct">82%</span></div>
+      <div class="rbar"><span class="rbar-label">Glioma</span><div class="rbar-track"><div class="rbar-fill" style="width:76%;background:#ef4444"></div></div><span class="rbar-pct">76%</span></div>
       <div class="rbar"><span class="rbar-label">Meningioma</span><div class="rbar-track"><div class="rbar-fill" style="width:11%;background:#f59e0b"></div></div><span class="rbar-pct">11%</span></div>
       <div class="rbar"><span class="rbar-label">No tumor</span><div class="rbar-track"><div class="rbar-fill" style="width:7%;background:#22c55e"></div></div><span class="rbar-pct">7%</span></div>
+      <div class="rbar"><span class="rbar-label">Pitituary</span><div class="rbar-track"><div class="rbar-fill" style="width:8%;background:#c7a7a7"></div></div><span class="rbar-pct">8%</span></div>
       <div class="result-tag">High confidence · Glioma detected</div>
     </div>
   </div>
@@ -217,7 +218,7 @@ footer p{font-size:13px;color:var(--dim);margin-bottom:4px}
 
 <!-- STATS -->
 <div class="stats">
-  <div class="stat"><div class="stat-n">97.4%</div><div class="stat-l">Detection accuracy</div></div>
+  <div class="stat"><div class="stat-n">99.4%</div><div class="stat-l">Detection accuracy</div></div>
   <div class="stat-div"></div>
   <div class="stat"><div class="stat-n">4</div><div class="stat-l">Tumor classes</div></div>
   <div class="stat-div"></div>
