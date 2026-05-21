@@ -18,6 +18,7 @@ def root():
     return {"status": "NeuroScan AI backend running"}
 
 @app.post("/classify")
+
 async def classify(file: UploadFile = File(...)):
     data = await file.read()
     return predict(data)
