@@ -24,3 +24,4 @@ async def classify(file: UploadFile = File(...)):
     return predict(data)
     return predict(data)
 
+
